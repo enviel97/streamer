@@ -1,7 +1,9 @@
-import 'package:agora_uikit/agora_uikit.dart';
+// import 'package:agora_uikit/agora_uikit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'migrates/agora.dart';
+import 'pages/home.dart';
+import 'ultils/migrates/agora.dart';
 
 class App extends StatefulWidget {
   const App({Key? key}) : super(key: key);
@@ -21,15 +23,12 @@ class _AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-      ),
-      body: Stack(
-        children: [
-          AgoraVideoViewer(client: agora.client),
-          AgoraVideoButtons(client: agora.client),
-        ],
+    return const ProviderScope(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        debugShowMaterialGrid: false,
+        title: 'Steaming App',
+        home: Home(),
       ),
     );
   }

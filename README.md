@@ -1,16 +1,18 @@
-# streamer
+# Streamer app
 
-A new Flutter project.
+A clone of streaming app by Flutter.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+This project is a pratice for study about flutter. Get inspired from freecode camp on youtube
 
-A few resources to get you started if this is your first Flutter project:
+## Special Packet:
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+agora: steaming helper packet
+flutter riverpod: state managerment (inspired from provider)
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Link
+
+https://www.youtube.com/watch?v=hN4Q04ODOEw
+timeline: 1:56:07
+process: ...

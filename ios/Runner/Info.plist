@@ -43,5 +43,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+  <string>$(FLUTTER_BUILD_NAME) need access microphone</string>
+	<key>NSCameraUsageDescription</key>
+  <string>$(FLUTTER_BUILD_NAME) need access camera</string>
 </dict>
 </plist>
