@@ -5,6 +5,7 @@ class LocalImage extends StatelessWidget {
   final String ext;
   final double? width;
   final double? height;
+  final BoxFit fit;
 
   const LocalImage(
     this.image, {
@@ -12,13 +13,14 @@ class LocalImage extends StatelessWidget {
     Key? key,
     this.width,
     this.height,
+    this.fit = BoxFit.cover,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Image.asset(
       'assets/images/$image.$ext',
-      fit: BoxFit.cover,
+      fit: fit,
       width: width,
       height: height,
     );
