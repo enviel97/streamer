@@ -8,3 +8,8 @@ void statusBarTransparent() {
     statusBarBrightness: Brightness.light, // For iOS (dark icons)
   ));
 }
+
+int createUid() {
+  final time = DateTime.now().millisecondsSinceEpoch;
+  return int.parse('$time'.substring(1, '$time'.length - 3));
+}
