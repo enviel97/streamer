@@ -1,5 +1,4 @@
 import 'package:agora_rtc_engine/rtc_local_view.dart' as local;
-import 'package:agora_rtc_engine/rtc_remote_view.dart' as remote;
 import 'package:flutter/material.dart';
 import 'package:streamer/src/constants.dart';
 import 'package:streamer/src/models/user.model.dart';

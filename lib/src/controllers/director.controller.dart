@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:streamer/src/constants.dart';
 import 'package:streamer/src/models/director.model.dart';
+import 'package:streamer/src/models/user.model.dart';
+import 'package:streamer/src/ultils/ultils.dart';
 
 final directorController =
     StateNotifierProvider.autoDispose<DirectorController, Director>(
-  (ref) {
-    return DirectorController(ref.read);
-  },
+  (ref) => DirectorController(ref.read),
 );
 
 class DirectorController extends StateNotifier<Director> {
@@ -22,20 +22,104 @@ class DirectorController extends StateNotifier<Director> {
     required int uid,
   }) async {
     await _initialize();
+    await _startedEngine();
+    _configEngine();
+    _configClient();
+    await _loginChannel(uid: uid, channelName: channelName);
+    _configMember();
+  }
 
+  Future<void> leaveCall() async {
+    state.engine?.leaveChannel();
+    state.engine?.destroy();
+    state.channel?.leave();
+    state.client?.logout();
+    state.client?.destroy();
+  }
+
+  Future<void> _initialize() async {
+    final engine = await RtcEngine.createWithContext(RtcEngineContext(appId));
+    final client = await AgoraRtmClient.createInstance(appId);
+    state = Director(engine: engine, client: client);
+  }
+
+  Future<void> _loginChannel({
+    required String channelName,
+    required int uid,
+  }) async {
+    await state.client?.login(null, '$uid');
+    state =
+        state.copyWith(channel: await state.client?.createChannel(channelName));
+    await state.channel?.join();
+    await state.engine?.joinChannel(null, channelName, null, uid);
+  }
+
+  Future<void> _startedEngine() async {
     await state.engine?.enableVideo();
     await state.engine?.setChannelProfile(ChannelProfile.LiveBroadcasting);
     await state.engine?.setClientRole(ClientRole.Broadcaster);
+  }
 
+  void _configEngine() {
     state.engine?.setEventHandler(
       RtcEngineEventHandler(
         joinChannelSuccess: (_, uid, __) {
-          debugPrint('Director: $uid');
+          print('Director: $uid');
         },
-        leaveChannel: (stats) {},
+        leaveChannel: (stats) {
+          print('Channel leaving');
+        },
+        userJoined: (uid, elapsed) {
+          print('USER JOINED: $uid');
+          _addUserToLobby(uid: uid);
+        },
+        userOffline: (uid, reason) {
+          _removeUser(uid: uid);
+        },
+        remoteAudioStateChanged: (uid, state, _, __) {
+          switch (state) {
+            case AudioRemoteState.Stopped:
+              updateUserAudio(uid: uid, muted: true);
+              return;
+            case AudioRemoteState.Decoding:
+              updateUserAudio(uid: uid, muted: false);
+              return;
+            case AudioRemoteState.Starting:
+              // TODO: Handle this case.
+              return;
+            case AudioRemoteState.Frozen:
+              // TODO: Handle this case.
+              return;
+            case AudioRemoteState.Failed:
+              // TODO: Handle this case.
+              return;
+          }
+        },
+        remoteVideoStateChanged: (uid, state, _, __) {
+          switch (state) {
+            case VideoRemoteState.Stopped:
+              updateUserVideo(uid: uid, videoDisabled: true);
+              return;
+            case VideoRemoteState.Decoding:
+              updateUserVideo(uid: uid, videoDisabled: false);
+              return;
+            case VideoRemoteState.Starting:
+              // TODO: Handle this case.
+              return;
+
+            case VideoRemoteState.Frozen:
+              // TODO: Handle this case.
+              return;
+            case VideoRemoteState.Failed:
+              // TODO: Handle this case.
+              return;
+          }
+        },
       ),
     );
+  }
 
+  void _configClient() {
     state.client?.onMessageReceived = (AgoraRtmMessage message, String peerId) {
       debugPrint('Private messenger from $peerId: ${message.text} \n $message');
     };
@@ -52,12 +136,9 @@ class DirectorController extends StateNotifier<Director> {
             '[CONNECTION CHANGE REASON]: state: $state, reason: INTERRUPTED');
       }
     };
-    await state.client?.login(null, '$uid');
-    state =
-        state.copyWith(channel: await state.client?.createChannel(channelName));
-    await state.channel?.join();
-    await state.engine?.joinChannel(null, channelName, null, uid);
+  }
 
+  void _configMember() {
     // member join
     state.channel?.onMemberJoined =
         (AgoraRtmMember member) => debugPrint('Member joind: ${member.userId}\n'
@@ -75,17 +156,111 @@ class DirectorController extends StateNotifier<Director> {
     };
   }
 
-  Future<void> leaveCall() async {
-    state.engine?.leaveChannel();
-    state.engine?.destroy();
-    state.channel?.leave();
-    state.client?.logout();
-    state.client?.destroy();
+  Future<void> _addUserToLobby({required int uid}) async {
+    state = state.copyWith(lobbyUsers: {
+      ...state.lobbyUsers,
+      User(
+        uid: uid,
+        muted: true,
+        videoDisabled: true,
+        name: '@user$uid',
+        backgroundColor: randomeColor(),
+      ),
+    });
   }
 
-  Future<void> _initialize() async {
-    final engine = await RtcEngine.createWithContext(RtcEngineContext(appId));
-    final client = await AgoraRtmClient.createInstance(appId);
-    state = Director(engine: engine, client: client);
+  Future<void> _removeUser({required int uid}) async {
+    final _active = state.activeUsers;
+    final _lobby = state.lobbyUsers;
+    _active.removeWhere((user) => user.uid == uid);
+    _lobby.removeWhere((user) => user.uid == uid);
+
+    state = state.copyWith(
+      activeUsers: _active,
+      lobbyUsers: _lobby,
+    );
+  }
+
+  Future<void> promoteToActiveUser({required int uid}) async {
+    final _lobby = state.lobbyUsers;
+    if (_lobby.isEmpty) return;
+
+    Color? _color;
+    String? _name;
+
+    final _users = _lobby.where((user) => user.uid == uid);
+    if (_users.isNotEmpty) {
+      final user = _users.first;
+      _color = user.backgroundColor;
+      _name = user.name;
+      _lobby.remove(user);
+    }
+
+    state = state.copyWith(activeUsers: {
+      ...state.activeUsers,
+      User(uid: uid, backgroundColor: _color, name: _name),
+    }, lobbyUsers: _lobby);
+  }
+
+  Future<void> demoteToActiveUser({required int uid}) async {
+    final _active = state.activeUsers;
+    if (_active.isEmpty) return;
+
+    Color? _color;
+    String? _name;
+
+    final _users = _active.where((user) => user.uid == uid);
+    if (_users.isNotEmpty) {
+      final user = _users.first;
+      _color = user.backgroundColor;
+      _name = user.name;
+      _active.remove(user);
+    }
+
+    state = state.copyWith(lobbyUsers: {
+      ...state.lobbyUsers,
+      User(
+        uid: uid,
+        backgroundColor: _color,
+        name: _name,
+        muted: true,
+        videoDisabled: true,
+      ),
+    }, activeUsers: _active);
+  }
+
+  Future<void> updateUserAudio({required int uid, required bool muted}) async {
+    try {
+      final _user = state.activeUsers.singleWhere((user) => user.uid == uid);
+      final _users = state.activeUsers;
+      _users.remove(_user);
+      _users.add(_user.copyWith(muted: muted));
+      state = state.copyWith(activeUsers: _users);
+    } catch (error) {
+      debugPrint('[Update audio]: $error');
+    }
+  }
+
+  Future<void> updateUserVideo(
+      {required int uid, required bool videoDisabled}) async {
+    try {
+      final _user = state.activeUsers.singleWhere((user) => user.uid == uid);
+      final _users = state.activeUsers;
+      _users.remove(_user);
+      _users.add(_user.copyWith(videoDisabled: videoDisabled));
+      state = state.copyWith(activeUsers: _users);
+    } catch (error) {
+      debugPrint('[Update video]: $error');
+    }
+  }
+
+  Future<void> toggleUserAudio({required int index}) async {
+    final user = state.activeUsers.elementAt(index);
+    updateUserAudio(uid: user.uid, muted: !user.muted);
+  }
+
+  Future<void> toggleUserVideo({required int index}) async {
+    final user = state.activeUsers.elementAt(index);
+    updateUserVideo(uid: user.uid, videoDisabled: !user.videoDisabled);
   }
 }

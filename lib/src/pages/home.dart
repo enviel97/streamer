@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:streamer/src/constants.dart';
-import 'package:streamer/src/pages/director.dart';
 import 'package:streamer/src/pages/participant.dart';
 import 'package:streamer/src/ultils/migrates/local_storage.dart';
 import 'package:streamer/src/ultils/migrates/permission.dart';
 import 'package:streamer/src/ultils/migrates/spacing.dart';
 import 'package:streamer/src/ultils/ultils.dart';
+import 'package:streamer/src/ultils/widgets/noted.dart';
 import 'package:streamer/src/widgets/custom_text_field.dart';
 import 'package:streamer/src/widgets/custom_text_icon_button.dart';
 import 'package:streamer/src/widgets/disable_keyboard.dart';
 import 'package:streamer/src/widgets/local_image.dart';
 
 import '../widgets/horizantal_separate.dart';
+import 'director/director.dart';
 
 class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
@@ -84,14 +84,22 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Future<void> _goToPaticipant() async {
+  Future<bool> _permission() async {
     if (channelName.isEmpty || // channel name
-            username.isEmpty || // username required
-            uid == -99999 || // uid required (away none null)
-            await deniedPermissions() // check permissions
-        ) {
-      return;
+            uid == -99999 // uid required (away none null)
+        ) return false;
+    if (await deniedPermissions()) {
+      KAlertDialog.of(context).confirm(
+          title: 'Warning',
+          content: 'You should allow [Streamer] access camera and microphone');
+
+      return false;
     }
+    return true;
+  }
+
+  Future<void> _goToPaticipant() async {
+    if (!(await _permission()) || username.isEmpty) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Participant(
@@ -104,11 +112,14 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> _goToDirector() async {
-    if (await deniedPermissions()) {
-      return;
-    }
+    if (!(await _permission())) return;
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const Director()),
+      MaterialPageRoute(
+        builder: (context) => Director(
+          channelName: channelName,
+          uid: uid,
+        ),
+      ),
     );
   }
 

@@ -50,56 +50,13 @@ class Agora {
     _client?.onConnectionStateChanged = (int state, int reason) {
       debugPrint('Connection state changed: $state, Reason: $reason');
 
-      switch (state) {
-        case 1:
-          {
-            debugPrint(
-                '[CONNECTION CHANGE REASON]: state: $state, reason: LOGIN');
-            break;
-          }
-        case 2:
-          {
-            debugPrint('[CONNECTION CHANGE REASON]: state: $state,'
-                ' reason: LOGIN SUCCESS');
-            break;
-          }
-        case 3:
-          {
-            debugPrint(
-                '[CONNECTION CHANGE REASON]: state: $state, reason: LOGIN FAILURE');
-            break;
-          }
-        case 4:
-          {
-            debugPrint(
-                '[CONNECTION CHANGE REASON]: state: $state, reason: LOGIN TIMEOUT');
-            break;
-          }
-
-        //  INTERRUPTED
-        case 5:
-        case 6:
-          {
-            _channel?.leave();
-            _client?.logout();
-            _client?.destroy();
-            debugPrint(
-                '[CONNECTION CHANGE REASON]: state: $state, reason: INTERRUPTED');
-            break;
-          }
-        case 7:
-          {
-            debugPrint(
-                '[CONNECTION CHANGE REASON]: state: $state, reason: BANNED');
-            break;
-          }
-        case 8:
-          {
-            debugPrint(
-                '[CONNECTION CHANGE REASON]: state: $state, reason: LOGIN REMOTE');
-
-            break;
-          }
+      //  INTERRUPTED
+      if (state == 5) {
+        _channel?.leave();
+        _client?.logout();
+        _client?.destroy();
+        debugPrint('[CONNECTION CHANGE REASON]: state: $state,'
+            ' reason: INTERRUPTED');
       }
     };
   }
