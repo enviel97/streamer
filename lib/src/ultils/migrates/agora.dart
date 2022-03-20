@@ -24,6 +24,7 @@ class Agora {
     _engine.leaveChannel();
     _engine.destroy();
     _channel?.leave();
+    _client?.logout();
     _client?.destroy();
   }
 
@@ -62,7 +63,10 @@ class Agora {
   }
 
   // Callbacks for RTM Channel
-  void onMemberChanged() {
+  void onMemberChanged({
+    required void Function(AgoraRtmMessage message, AgoraRtmMember member)?
+        onMessageReceive,
+  }) {
     // member join
     _channel?.onMemberJoined =
         (AgoraRtmMember member) => debugPrint('Member joind: ${member.userId}\n'
@@ -73,11 +77,8 @@ class Agora {
         (AgoraRtmMember member) => debugPrint('Member left: ${member.userId}\n'
             'channel: ${member.channelId}');
 
-    // member out
-    _channel?.onMessageReceived =
-        (AgoraRtmMessage message, AgoraRtmMember member) {
-      debugPrint('Public Message from ${member.userId}: ${message.text}');
-    };
+    // member receive
+    _channel?.onMessageReceived = onMessageReceive;
   }
 
   Future<void> join(int uid, String channelName) async {

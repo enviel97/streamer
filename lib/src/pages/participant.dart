@@ -1,8 +1,16 @@
 import 'package:agora_rtc_engine/rtc_local_view.dart' as local;
+import 'package:agora_rtc_engine/rtc_remote_view.dart' as remote;
+import 'package:agora_rtm/agora_rtm.dart';
+import 'package:bordered_text/bordered_text.dart';
 import 'package:flutter/material.dart';
 import 'package:streamer/src/constants.dart';
 import 'package:streamer/src/models/user.model.dart';
 import 'package:streamer/src/ultils/migrates/agora.dart';
+import 'package:streamer/src/ultils/migrates/message.dart';
+import 'package:streamer/src/ultils/migrates/spacing.dart';
+import 'package:streamer/src/ultils/ultils.dart';
+import 'package:streamer/src/ultils/widgets/custom_icon_button.dart';
+import 'package:streamer/src/ultils/widgets/extended_grid.dart';
 
 class Participant extends StatefulWidget {
   final String channelName;
@@ -22,7 +30,7 @@ class Participant extends StatefulWidget {
 
 class _ParticipantState extends State<Participant> {
   final agora = Agora();
-  final List<User> _users = [];
+  List<User> _users = [];
   bool muted = false, videoDisabled = false;
 
   @override
@@ -33,73 +41,104 @@ class _ParticipantState extends State<Participant> {
 
   @override
   void dispose() {
-    _users.clear();
     agora.dispose();
+    _users.clear();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          _broadcastView(),
-          Container(
-            alignment: Alignment.bottomCenter,
-            padding: const EdgeInsets.symmetric(vertical: 48.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                RawMaterialButton(
-                  onPressed: _onToggleMute,
-                  child: Icon(
-                    muted ? Icons.mic_off : Icons.mic,
-                    color: muted ? kWhiteColor : Colors.blueAccent,
-                    size: 20.0,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            _broadcastView(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _broadcastView() {
+    if (_users.isEmpty) {
+      return const Center(child: Text('No users'));
+    }
+    final users = _users.where((u) => u.uid != widget.uid).toList();
+    final primary = _users.singleWhere(
+      (u) => u.uid != widget.uid,
+      orElse: () => User(
+        uid: widget.uid,
+        name: widget.channelName,
+        backgroundColor: randomeColor(),
+        muted: muted,
+        videoDisabled: videoDisabled,
+      ),
+    );
+    return ExtendedGridView<User>(
+        data: users,
+        primary: primary,
+        itemBuilder: (user) {
+          final isLocalActive = widget.uid == user.uid;
+          return Stack(children: [
+            isLocalActive
+                ? local.SurfaceView()
+                : remote.SurfaceView(uid: user.uid),
+            if (isLocalActive) _toolBar(),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                decoration: const BoxDecoration(
+                  color: kBlackColor,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(10.0),
                   ),
-                  shape: const CircleBorder(),
-                  elevation: 2.0,
-                  fillColor: muted ? Colors.blueAccent : kWhiteColor,
-                  padding: const EdgeInsets.all(12.0),
                 ),
-                RawMaterialButton(
-                  onPressed: () => _onCallEnd(context),
-                  child: const Icon(
-                    Icons.call_end,
+                child: Text(
+                  isLocalActive ? widget.userName : user.name ?? 'Error name',
+                  style: const TextStyle(
                     color: kWhiteColor,
-                    size: 35.0,
+                    fontSize: Spacing.m,
+                    fontWeight: FontWeight.bold,
                   ),
-                  shape: const CircleBorder(),
-                  elevation: 2.0,
-                  fillColor: Colors.redAccent,
-                  padding: const EdgeInsets.all(15.0),
                 ),
-                RawMaterialButton(
-                  onPressed: _onToggleVideoDisabled,
-                  child: Icon(
-                    videoDisabled ? Icons.videocam_off : Icons.videocam,
-                    color: videoDisabled ? kWhiteColor : Colors.blueAccent,
-                    size: 20.0,
-                  ),
-                  shape: const CircleBorder(),
-                  elevation: 2.0,
-                  fillColor: videoDisabled ? Colors.blueAccent : kWhiteColor,
-                  padding: const EdgeInsets.all(12.0),
-                ),
-                RawMaterialButton(
-                  onPressed: _onSwitchCamera,
-                  child: const Icon(
-                    Icons.switch_camera,
-                    color: Colors.blueAccent,
-                    size: 20.0,
-                  ),
-                  shape: const CircleBorder(),
-                  elevation: 2.0,
-                  fillColor: kWhiteColor,
-                  padding: const EdgeInsets.all(12.0),
-                ),
-              ],
-            ),
+              ),
+            )
+          ]);
+        });
+  }
+
+  Widget _toolBar() {
+    return Container(
+      alignment: Alignment.bottomCenter,
+      padding: const EdgeInsets.symmetric(vertical: 48.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          KIconButton(
+            color: muted ? kWhiteColor : Colors.blueAccent,
+            backgroundColor: muted ? Colors.blueAccent : kWhiteColor,
+            icon: muted ? Icons.mic_off : Icons.mic,
+            onPressed: _onToggleMute,
+          ),
+          KIconButton(
+            size: 35.0,
+            color: kWhiteColor,
+            backgroundColor: Colors.redAccent,
+            icon: Icons.call_end,
+            onPressed: () => _onCallEnd(context),
+          ),
+          KIconButton(
+            color: videoDisabled ? kWhiteColor : Colors.blueAccent,
+            backgroundColor: videoDisabled ? Colors.blueAccent : kWhiteColor,
+            icon: videoDisabled ? Icons.videocam_off : Icons.videocam,
+            onPressed: _onToggleVideoDisabled,
+          ),
+          KIconButton(
+            color: Colors.blueAccent,
+            backgroundColor: kWhiteColor,
+            icon: Icons.switch_camera,
+            onPressed: _onSwitchCamera,
           ),
         ],
       ),
@@ -116,7 +155,7 @@ class _ParticipantState extends State<Participant> {
       });
       agora.onConnectionStateChanged();
       await agora.join(widget.uid, widget.channelName);
-      agora.onMemberChanged();
+      agora.onMemberChanged(onMessageReceive: _onMessageReceive);
     } catch (error) {
       debugPrint('[Error occus]: $error');
     }
@@ -127,25 +166,50 @@ class _ParticipantState extends State<Participant> {
     agora.engine.muteLocalAudioStream(muted);
   }
 
+  void _onToggleVideoDisabled() {
+    setState(() => videoDisabled = !videoDisabled);
+    agora.engine.muteLocalVideoStream(videoDisabled);
+  }
+
   void _onCallEnd(BuildContext context) {
     if (Navigator.canPop(context)) {
       Navigator.maybePop(context);
     }
   }
 
-  void _onToggleVideoDisabled() {
-    setState(() => videoDisabled = !videoDisabled);
-    agora.engine.muteLocalVideoStream(videoDisabled);
-  }
-
   void _onSwitchCamera() {
     agora.engine.switchCamera();
   }
 
-  Widget _broadcastView() {
-    if (_users.isEmpty) {
-      return const Center(child: Text('No users'));
+  void _onMessageReceive(AgoraRtmMessage message, AgoraRtmMember member) {
+    //
+    final _message = message.text.split(' ');
+    switch (_message[0]) {
+      case audio:
+        {
+          final message = ReceiveMessage.changedAudio(_message[1]);
+          if (message[widget.uid] != null) {
+            final _muted = message[widget.uid] ?? muted;
+            setState(() => muted = _muted);
+            agora.engine.muteLocalAudioStream(_muted);
+          }
+          return;
+        }
+      case video:
+        {
+          final message = ReceiveMessage.changedVideo(_message[1]);
+          if (message[widget.uid] != null) {
+            final _videoDisabled = message[widget.uid] ?? videoDisabled;
+            setState(() => videoDisabled = _videoDisabled);
+            agora.engine.muteLocalVideoStream(muted);
+          }
+          return;
+        }
+      case active_users:
+        {
+          setState(() => _users = ReceiveMessage.activeUsers(_message[1]));
+          return;
+        }
     }
-    return local.SurfaceView();
   }
 }

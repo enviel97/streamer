@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:streamer/src/constants.dart';
 import 'package:streamer/src/models/director.model.dart';
 import 'package:streamer/src/models/user.model.dart';
+import 'package:streamer/src/ultils/migrates/message.dart';
 import 'package:streamer/src/ultils/ultils.dart';
 
 final directorController =
@@ -36,6 +37,88 @@ class DirectorController extends StateNotifier<Director> {
     state.client?.logout();
     state.client?.destroy();
   }
+
+  Future<void> promoteToActiveUser({required int uid}) async {
+    final _lobby = state.lobbyUsers;
+    if (_lobby.isEmpty) return;
+
+    Color? _color;
+    String? _name;
+
+    final _users = _lobby.where((user) => user.uid == uid);
+    if (_users.isNotEmpty) {
+      final user = _users.first;
+      _color = user.backgroundColor;
+      _name = user.name;
+      _lobby.remove(user);
+    }
+
+    state = state.copyWith(activeUsers: {
+      ...state.activeUsers,
+      User(uid: uid, backgroundColor: _color, name: _name),
+    }, lobbyUsers: _lobby);
+
+    _sendMessageToChannel(SendMessage.changedAudio(uid: '$uid', muted: false));
+    _sendMessageToChannel(
+        SendMessage.changedVideo(uid: '$uid', disabled: false));
+    _sendMessageToChannel(SendMessage.activeUsers(state.activeUsers));
+  }
+
+  Future<void> demoteToActiveUser({required int uid}) async {
+    final _active = state.activeUsers;
+    if (_active.isEmpty) return;
+
+    Color? _color;
+    String? _name;
+
+    final _users = _active.where((user) => user.uid == uid);
+    if (_users.isNotEmpty) {
+      final user = _users.first;
+      _color = user.backgroundColor;
+      _name = user.name;
+      _active.remove(user);
+    }
+
+    state = state.copyWith(lobbyUsers: {
+      ...state.lobbyUsers,
+      User(
+        uid: uid,
+        backgroundColor: _color,
+        name: _name,
+        muted: true,
+        videoDisabled: true,
+      ),
+    }, activeUsers: _active);
+
+    _sendMessageToChannel(SendMessage.changedAudio(uid: '$uid', muted: true));
+    _sendMessageToChannel(
+        SendMessage.changedVideo(uid: '$uid', disabled: true));
+    _sendMessageToChannel(SendMessage.activeUsers(state.activeUsers));
+  }
+
+  Future<void> toggleUserAudio({required int index}) async {
+    final user = state.activeUsers.elementAt(index);
+
+    if (user.muted) {
+      state.channel!
+          .sendMessage(AgoraRtmMessage.fromText('unmuted ${user.uid}'));
+    } else {
+      state.channel!.sendMessage(AgoraRtmMessage.fromText('muted ${user.uid}'));
+    }
+  }
+
+  Future<void> toggleUserVideo({required int index}) async {
+    final user = state.activeUsers.elementAt(index);
+    if (user.videoDisabled) {
+      state.channel!
+          .sendMessage(AgoraRtmMessage.fromText('videoEnabled ${user.uid}'));
+    } else {
+      state.channel!
+          .sendMessage(AgoraRtmMessage.fromText('videoDisabled ${user.uid}'));
+    }
+  }
+
+  // private
 
   Future<void> _initialize() async {
     final engine = await RtcEngine.createWithContext(RtcEngineContext(appId));
@@ -79,10 +162,10 @@ class DirectorController extends StateNotifier<Director> {
         remoteAudioStateChanged: (uid, state, _, __) {
           switch (state) {
             case AudioRemoteState.Stopped:
-              updateUserAudio(uid: uid, muted: true);
+              _updateUserAudio(uid: uid, muted: true);
               return;
             case AudioRemoteState.Decoding:
-              updateUserAudio(uid: uid, muted: false);
+              _updateUserAudio(uid: uid, muted: false);
               return;
             case AudioRemoteState.Starting:
               // TODO: Handle this case.
@@ -98,10 +181,10 @@ class DirectorController extends StateNotifier<Director> {
         remoteVideoStateChanged: (uid, state, _, __) {
           switch (state) {
             case VideoRemoteState.Stopped:
-              updateUserVideo(uid: uid, videoDisabled: true);
+              _updateUserVideo(uid: uid, videoDisabled: true);
               return;
             case VideoRemoteState.Decoding:
-              updateUserVideo(uid: uid, videoDisabled: false);
+              _updateUserVideo(uid: uid, videoDisabled: false);
               return;
             case VideoRemoteState.Starting:
               // TODO: Handle this case.
@@ -167,6 +250,7 @@ class DirectorController extends StateNotifier<Director> {
         backgroundColor: randomeColor(),
       ),
     });
+    _sendMessageToChannel(SendMessage.activeUsers(state.activeUsers));
   }
 
   Future<void> _removeUser({required int uid}) async {
@@ -179,57 +263,11 @@ class DirectorController extends StateNotifier<Director> {
       activeUsers: _active,
       lobbyUsers: _lobby,
     );
+
+    _sendMessageToChannel(SendMessage.activeUsers(state.activeUsers));
   }
 
-  Future<void> promoteToActiveUser({required int uid}) async {
-    final _lobby = state.lobbyUsers;
-    if (_lobby.isEmpty) return;
-
-    Color? _color;
-    String? _name;
-
-    final _users = _lobby.where((user) => user.uid == uid);
-    if (_users.isNotEmpty) {
-      final user = _users.first;
-      _color = user.backgroundColor;
-      _name = user.name;
-      _lobby.remove(user);
-    }
-
-    state = state.copyWith(activeUsers: {
-      ...state.activeUsers,
-      User(uid: uid, backgroundColor: _color, name: _name),
-    }, lobbyUsers: _lobby);
-  }
-
-  Future<void> demoteToActiveUser({required int uid}) async {
-    final _active = state.activeUsers;
-    if (_active.isEmpty) return;
-
-    Color? _color;
-    String? _name;
-
-    final _users = _active.where((user) => user.uid == uid);
-    if (_users.isNotEmpty) {
-      final user = _users.first;
-      _color = user.backgroundColor;
-      _name = user.name;
-      _active.remove(user);
-    }
-
-    state = state.copyWith(lobbyUsers: {
-      ...state.lobbyUsers,
-      User(
-        uid: uid,
-        backgroundColor: _color,
-        name: _name,
-        muted: true,
-        videoDisabled: true,
-      ),
-    }, activeUsers: _active);
-  }
-
-  Future<void> updateUserAudio({required int uid, required bool muted}) async {
+  Future<void> _updateUserAudio({required int uid, required bool muted}) async {
     try {
       final _user = state.activeUsers.singleWhere((user) => user.uid == uid);
       final _users = state.activeUsers;
@@ -241,8 +279,10 @@ class DirectorController extends StateNotifier<Director> {
     }
   }
 
-  Future<void> updateUserVideo(
-      {required int uid, required bool videoDisabled}) async {
+  Future<void> _updateUserVideo({
+    required int uid,
+    required bool videoDisabled,
+  }) async {
     try {
       final _user = state.activeUsers.singleWhere((user) => user.uid == uid);
       final _users = state.activeUsers;
@@ -254,13 +294,7 @@ class DirectorController extends StateNotifier<Director> {
     }
   }
 
-  Future<void> toggleUserAudio({required int index}) async {
-    final user = state.activeUsers.elementAt(index);
-    updateUserAudio(uid: user.uid, muted: !user.muted);
-  }
-
-  Future<void> toggleUserVideo({required int index}) async {
-    final user = state.activeUsers.elementAt(index);
-    updateUserVideo(uid: user.uid, videoDisabled: !user.videoDisabled);
+  Future<void> _sendMessageToChannel(String message) async {
+    state.channel?.sendMessage(AgoraRtmMessage.fromText(message));
   }
 }

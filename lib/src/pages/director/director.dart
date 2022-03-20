@@ -147,6 +147,6 @@ class _DirectorState extends ConsumerState<Director> {
   }
 
   Widget get _buildDirector {
-    return Text('Director');
+    return const Text('Director');
   }
 }
