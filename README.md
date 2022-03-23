@@ -8,12 +8,8 @@ This project is a pratice for study about flutter. Get inspired from freecode ca
 
 ## Special Packet:
 
-agora: steaming helper packet
-flutter riverpod: state managerment (inspired from provider)
-
-### apk - file
-
-~/this-project/build/app/outputs/flutter-apk/app-release.apk
+- agora: steaming helper packet
+- flutter riverpod: state managerment (inspired from provider)
 
 ## Link
 
