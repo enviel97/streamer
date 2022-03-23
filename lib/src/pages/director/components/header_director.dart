@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:streamer/src/controllers/director.controller.dart';
 import 'package:streamer/src/models/stream.model.dart';
+import 'package:streamer/src/pages/director/bottom_sheet/facebook.dart';
 import 'package:streamer/src/pages/director/bottom_sheet/twitch.dart';
 import 'package:streamer/src/pages/director/bottom_sheet/youtube.dart';
 import 'package:streamer/src/pages/director/widgets/stream_platform_chip.dart';
@@ -93,6 +94,9 @@ class HeaderDirector extends StatelessWidget {
         showBottomSheetTwitch(context, controller: controller);
         break;
       case StreamPlatform.other:
+        break;
+      case StreamPlatform.facebook:
+        showBottomSheetFacebook(context, controller: controller);
         break;
     }
   }

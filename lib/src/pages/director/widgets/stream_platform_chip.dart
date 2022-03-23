@@ -29,6 +29,8 @@ class StreamPlatformChip extends StatelessWidget {
         return twitterColor;
       case StreamPlatform.other:
         return backgroundColor ?? randomeColor();
+      case StreamPlatform.facebook:
+        return facebookColor;
     }
   }
 

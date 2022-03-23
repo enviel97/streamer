@@ -1,4 +1,4 @@
-enum StreamPlatform { youtube, twitch, other }
+enum StreamPlatform { youtube, twitch, facebook, other }
 
 class StreamDestination {
   final StreamPlatform platform;

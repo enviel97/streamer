@@ -22,3 +22,4 @@ const kRedColor = Color(0xFFf5484e);
 
 const youtubeColor = Color(0xFFff0000);
 const twitterColor = Color(0xFF643ea3);
+const facebookColor = Color(0xFF0570e6);
