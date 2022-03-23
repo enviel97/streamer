@@ -30,6 +30,10 @@ class Agora {
 
   RtcEngine get engine => _engine;
 
+  void setClientAtributte(List<Map<String, String>> attribute) {
+    _client?.addOrUpdateLocalUserAttributes(attribute);
+  }
+
   void connection({
     void Function(String channel, int uid, int elapsed)? onSuccess,
     void Function(RtcStats stats)? onLeaving,

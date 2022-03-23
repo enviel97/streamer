@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:streamer/src/constants.dart';
-import 'package:streamer/src/pages/participant.dart';
+import 'package:streamer/src/pages/participant/participant.dart';
 import 'package:streamer/src/ultils/migrates/local_storage.dart';
 import 'package:streamer/src/ultils/migrates/permission.dart';
 import 'package:streamer/src/ultils/migrates/spacing.dart';
@@ -22,8 +22,8 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  String username = '';
-  String channelName = '';
+  String username = 'Tester 1';
+  String channelName = 'Enviel';
   int uid = -99999;
   @override
   void initState() {
@@ -34,49 +34,53 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       body: DismissKeyboard(
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const LocalImage('streamer_logo'),
-                Spacing.vertical.xs,
-                const Text(
-                  'Multi Streaming with Friends',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(fontSize: Spacing.m),
-                ),
-                Spacing.vertical.xxxl,
-                KTextField(
-                  label: 'Username',
-                  onChanged: (value) => username = value,
-                ),
-                Spacing.vertical.s,
-                KTextField(
-                  label: 'Channel name',
-                  onChanged: (value) => channelName = value,
-                ),
-                const Padding(
-                  padding: EdgeInsets.all(15.0),
-                  child: HorizantalSeparate(),
-                ),
-                KTextIconButton(
-                  text: 'PARTICIPANT',
-                  isOutline: true,
-                  icon: Icons.live_tv_rounded,
-                  onPressed: _goToPaticipant,
-                ),
-                Spacing.vertical.m,
-                KTextIconButton(
-                  text: 'DIRECTOR',
-                  onPressed: _goToDirector,
-                  icon: Icons.cut_rounded,
-                ),
-              ],
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 15.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const LocalImage('streamer_logo'),
+                  Spacing.vertical.xs,
+                  const Text(
+                    'Multi Streaming with Friends',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: Spacing.m),
+                  ),
+                  Spacing.vertical.xxxl,
+                  KTextField(
+                    label: 'Username',
+                    initialValue: username,
+                    onChanged: (value) => username = value,
+                  ),
+                  Spacing.vertical.s,
+                  KTextField(
+                    label: 'Channel name',
+                    initialValue: channelName,
+                    onChanged: (value) => channelName = value,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.all(15.0),
+                    child: HorizantalSeparate(),
+                  ),
+                  KTextIconButton(
+                    text: 'PARTICIPANT',
+                    isOutline: true,
+                    icon: Icons.live_tv_rounded,
+                    onPressed: _goToPaticipant,
+                  ),
+                  Spacing.vertical.m,
+                  KTextIconButton(
+                    text: 'DIRECTOR',
+                    onPressed: _goToDirector,
+                    icon: Icons.cut_rounded,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,10 +1,14 @@
+import 'package:circular_menu/circular_menu.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:streamer/src/models/user.model.dart';
+import 'package:streamer/src/constants.dart';
 import 'package:streamer/src/controllers/director.controller.dart';
-import 'package:streamer/src/pages/director/widgets/lobby_user.dart';
+import 'package:streamer/src/models/director.model.dart' as model;
+import 'package:streamer/src/pages/director/components/header_director.dart';
+import 'package:streamer/src/pages/director/components/lobby_director.dart';
+import 'package:streamer/src/ultils/widgets/noted.dart';
 
-import 'widgets/stage_user.dart';
+import 'components/stage_director.dart';
 
 class Director extends ConsumerStatefulWidget {
   final String channelName;
@@ -20,133 +24,98 @@ class Director extends ConsumerStatefulWidget {
 }
 
 class _DirectorState extends ConsumerState<Director> {
+  String url = '', key = '';
+
   @override
   void initState() {
     super.initState();
-
-    ref.read(directorController.notifier).joinCall(
-          channelName: widget.channelName,
-          uid: widget.uid,
-        );
-  }
-
-  @override
-  void dispose() {
-    ref.read(directorController.notifier).leaveCall();
-    super.dispose();
+    // ref.read(directorController.notifier).joinCall(
+    //       channelName: widget.channelName,
+    //       uid: widget.uid,
+    //     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(directorController);
     final controller = ref.watch(directorController.notifier);
-    print(widget.channelName);
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: CustomScrollView(
-          slivers: [
-            SliverList(
-              delegate: SliverChildListDelegate(
-                [SafeArea(child: _buildDirector)],
+    final data = ref.watch(directorController);
+
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircularMenu(
+            alignment: Alignment.bottomRight,
+            toggleButtonColor: Colors.black87,
+            toggleButtonBoxShadow: [
+              const BoxShadow(color: Colors.black26, blurRadius: 10.0)
+            ],
+            items: [
+              CircularMenuItem(
+                onTap: () => _endStream(controller),
+                icon: Icons.call_end,
+                color: kRedColor,
               ),
-            ),
-            ..._buildUserSets(
-              data.activeUsers,
-              emptyNoted: 'Empty state',
-              delegate: SliverChildBuilderDelegate((context, index) {
-                return Row(children: [
-                  Expanded(
-                    child: StageUser(
-                      user: data.activeUsers.elementAt(index),
-                      controller: controller,
-                      onMuted: () {
-                        controller.toggleUserAudio(index: index);
-                      },
-                      onPromoteToActive: () {
-                        controller.demoteToActiveUser(
-                          uid: data.activeUsers.elementAt(index).uid,
-                        );
-                      },
-                      onVideoOff: () {
-                        controller.toggleUserVideo(index: index);
-                      },
-                    ),
-                  )
-                ]);
-              }, childCount: data.activeUsers.length),
-            ),
-            SliverList(
-              delegate: SliverChildListDelegate([
-                const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Divider(
-                    thickness: 3,
-                    indent: 80.0,
-                    endIndent: 80.0,
+              CircularMenuItem(
+                onTap: () => _streamingHandler(controller, data),
+                icon: data.isLive ? Icons.cancel : Icons.videocam,
+                color: Colors.orange,
+              ),
+            ],
+            backgroundWidget: CustomScrollView(
+              slivers: [
+                SliverList(
+                  delegate: SliverChildListDelegate(
+                    [
+                      SafeArea(
+                        child: HeaderDirector(
+                          channelName: widget.channelName,
+                          controller: controller,
+                          destinations: data.destination,
+                        ),
+                      )
+                    ],
                   ),
-                )
-              ]),
+                ),
+                StageDirector(controller: controller, data: data.activeUsers),
+                SliverList(
+                    delegate: SliverChildListDelegate([
+                  const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child:
+                          Divider(thickness: 3, indent: 80.0, endIndent: 80.0))
+                ])),
+                LobbyDirector(controller: controller, data: data.lobbyUsers),
+              ],
             ),
-            ..._buildUserSets(
-              data.lobbyUsers,
-              emptyNoted: 'Empty lobby',
-              delegate: SliverChildBuilderDelegate((context, index) {
-                return Row(children: [
-                  Expanded(
-                    child: LobbyUser(
-                      user: data.lobbyUsers.elementAt(index),
-                      controller: ref.watch(directorController.notifier),
-                      onDemoteToLobby: () {
-                        controller.promoteToActiveUser(
-                          uid: data.lobbyUsers.elementAt(index).uid,
-                        );
-                      },
-                      // onMuted: () {},
-                      // onVideoOff: () {},
-                    ),
-                  )
-                ]);
-              }, childCount: data.lobbyUsers.length),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildUserSets(
-    Set<User> users, {
-    required SliverChildDelegate delegate,
-    String emptyNoted = 'Empty',
-  }) {
-    final size = MediaQuery.of(context).size;
-    return [
-      if (users.isEmpty)
-        SliverList(
-          delegate: SliverChildListDelegate(
-            [
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 20.0),
-                  child: Text(emptyNoted),
-                ),
-              )
-            ],
-          ),
-        ),
-      SliverGrid(
-        delegate: delegate,
-        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: size.width / 2,
-          crossAxisSpacing: 20,
-          mainAxisSpacing: 20,
-        ),
-      ),
-    ];
+  void _streamingHandler(
+    DirectorController controller,
+    model.Director data,
+  ) {
+    if (data.isLive) {
+      controller.endStream();
+    } else {
+      if (data.destination.isNotEmpty) {
+        controller.startStream();
+      } else {
+        KAlertDialog.of(context).error(
+          title: 'Noted',
+          content: 'Invalid public streaming link',
+          confirmText: 'Ok',
+        );
+      }
+    }
   }
 
-  Widget get _buildDirector {
-    return const Text('Director');
+  void _endStream(DirectorController controller) {
+    controller.leaveCall();
+    Navigator.of(context).pop();
   }
 }

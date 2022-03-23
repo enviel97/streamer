@@ -49,9 +49,9 @@ class _KTextFieldState extends State<KTextField> {
   TextStyle get style =>
       TextStyle(fontSize: widget.fontSize, color: kBlackColor);
 
-  OutlineInputBorder border({Color color = kBlackColor}) => OutlineInputBorder(
-      borderRadius: const BorderRadius.all(Radius.circular(Spacing.m)),
-      borderSide: BorderSide(color: color, width: 1.0));
+  final border = const OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(Spacing.m)),
+      borderSide: BorderSide(color: kBlackColor, width: 1.0));
 
   Widget? get clearButton {
     if (!widget.isClearButton || !isHasValue) {
@@ -87,9 +87,9 @@ class _KTextFieldState extends State<KTextField> {
         suffixIcon: clearButton,
 
         /// input field border
-        border: border(),
-        focusedBorder: border(),
-        enabledBorder: border(),
+        border: border,
+        focusedBorder: border,
+        enabledBorder: border,
 
         /// color
         focusColor: kBlackColor,

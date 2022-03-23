@@ -15,4 +15,4 @@ flutter riverpod: state managerment (inspired from provider)
 
 https://www.youtube.com/watch?v=hN4Q04ODOEw
 timeline: 1:56:07
-process: 1:28:22
+process: 1:38:25

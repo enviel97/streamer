@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:streamer/src/constants.dart';
 import 'package:streamer/src/models/director.model.dart';
+import 'package:streamer/src/models/stream.model.dart';
 import 'package:streamer/src/models/user.model.dart';
+import 'package:streamer/src/ultils/extentions/hex_color.dart';
 import 'package:streamer/src/ultils/migrates/message.dart';
-import 'package:streamer/src/ultils/ultils.dart';
 
 final directorController =
     StateNotifierProvider.autoDispose<DirectorController, Director>(
@@ -22,12 +23,14 @@ class DirectorController extends StateNotifier<Director> {
     required String channelName,
     required int uid,
   }) async {
-    await _initialize();
-    await _startedEngine();
-    _configEngine();
-    _configClient();
-    await _loginChannel(uid: uid, channelName: channelName);
-    _configMember();
+    if (mounted) {
+      await _initialize();
+      await _startedEngine();
+      _configEngine();
+      _configClient();
+      await _loginChannel(uid: uid, channelName: channelName);
+      _configMember();
+    }
   }
 
   Future<void> leaveCall() async {
@@ -62,6 +65,7 @@ class DirectorController extends StateNotifier<Director> {
     _sendMessageToChannel(
         SendMessage.changedVideo(uid: '$uid', disabled: false));
     _sendMessageToChannel(SendMessage.activeUsers(state.activeUsers));
+    if (state.isLive) updateStream();
   }
 
   Future<void> demoteToActiveUser({required int uid}) async {
@@ -99,23 +103,23 @@ class DirectorController extends StateNotifier<Director> {
   Future<void> toggleUserAudio({required int index}) async {
     final user = state.activeUsers.elementAt(index);
 
-    if (user.muted) {
-      state.channel!
-          .sendMessage(AgoraRtmMessage.fromText('unmuted ${user.uid}'));
-    } else {
-      state.channel!.sendMessage(AgoraRtmMessage.fromText('muted ${user.uid}'));
-    }
+    _sendMessageToChannel(
+      SendMessage.changedAudio(
+        uid: '${user.uid}',
+        muted: user.muted,
+      ),
+    );
   }
 
   Future<void> toggleUserVideo({required int index}) async {
     final user = state.activeUsers.elementAt(index);
-    if (user.videoDisabled) {
-      state.channel!
-          .sendMessage(AgoraRtmMessage.fromText('videoEnabled ${user.uid}'));
-    } else {
-      state.channel!
-          .sendMessage(AgoraRtmMessage.fromText('videoDisabled ${user.uid}'));
-    }
+
+    _sendMessageToChannel(
+      SendMessage.changedVideo(
+        uid: '${user.uid}',
+        disabled: user.videoDisabled,
+      ),
+    );
   }
 
   // private
@@ -146,14 +150,13 @@ class DirectorController extends StateNotifier<Director> {
   void _configEngine() {
     state.engine?.setEventHandler(
       RtcEngineEventHandler(
-        joinChannelSuccess: (_, uid, __) {
-          print('Director: $uid');
-        },
-        leaveChannel: (stats) {
-          print('Channel leaving');
-        },
+        // joinChannelSuccess: (_, uid, __) {
+        //   print('Director: $uid');
+        // },
+        // leaveChannel: (stats) {
+        //   print('Channel leaving');
+        // },
         userJoined: (uid, elapsed) {
-          print('USER JOINED: $uid');
           _addUserToLobby(uid: uid);
         },
         userOffline: (uid, reason) {
@@ -233,21 +236,26 @@ class DirectorController extends StateNotifier<Director> {
             'channel: ${member.channelId}');
 
     // member out
-    state.channel?.onMessageReceived =
-        (AgoraRtmMessage message, AgoraRtmMember member) {
+    state.channel?.onMessageReceived = (
+      AgoraRtmMessage message,
+      AgoraRtmMember member,
+    ) {
       debugPrint('Public Message from ${member.userId}: ${message.text}');
     };
   }
 
   Future<void> _addUserToLobby({required int uid}) async {
+    final userAttributes = await state.client?.getUserAttributes('$uid');
+    final color =
+        HexColor.fromString(userAttributes?['color'] ?? '') ?? kBlackColor;
     state = state.copyWith(lobbyUsers: {
       ...state.lobbyUsers,
       User(
         uid: uid,
         muted: true,
         videoDisabled: true,
-        name: '@user$uid',
-        backgroundColor: randomeColor(),
+        name: userAttributes?['name'] ?? '@user$uid',
+        backgroundColor: color,
       ),
     });
     _sendMessageToChannel(SendMessage.activeUsers(state.activeUsers));
@@ -265,6 +273,7 @@ class DirectorController extends StateNotifier<Director> {
     );
 
     _sendMessageToChannel(SendMessage.activeUsers(state.activeUsers));
+    if (state.isLive) updateStream();
   }
 
   Future<void> _updateUserAudio({required int uid, required bool muted}) async {
@@ -296,5 +305,60 @@ class DirectorController extends StateNotifier<Director> {
 
   Future<void> _sendMessageToChannel(String message) async {
     state.channel?.sendMessage(AgoraRtmMessage.fromText(message));
+  }
+
+  // Stream Controller
+
+  Future<void> startStream() async {
+    // firstime run
+    updateStream();
+
+    for (StreamDestination dest in state.destination) {
+      state.engine?.addPublishStreamUrl(dest.url, true);
+    }
+
+    state = state.copyWith(isLive: true);
+  }
+
+  Future<void> updateStream() async {
+    final List<TranscodingUser> transcodingUsers = [];
+// ??
+    for (User user in state.activeUsers) {
+      transcodingUsers.add(TranscodingUser(user.uid));
+    }
+
+    final transcoding =
+        LiveTranscoding(transcodingUsers, width: 1920, height: 1080);
+    state.engine?.setLiveTranscoding(transcoding);
+  }
+
+  Future<void> endStream() async {
+    for (StreamDestination dest in state.destination) {
+      state.engine!.removePublishStreamUrl(dest.url);
+    }
+    state = state.copyWith(isLive: false);
+  }
+
+  Future<void> addPublishDestination({
+    required StreamPlatform platform,
+    required String url,
+  }) async {
+    if (state.isLive) {
+      state.engine?.addPublishStreamUrl(url, true);
+    }
+    state = state.copyWith(destination: [
+      ...state.destination,
+      StreamDestination(platform: platform, url: url)
+    ]);
+  }
+
+  Future<void> removePublishDestination({
+    required StreamPlatform platform,
+    required String url,
+  }) async {
+    if (state.isLive) state.engine?.removePublishStreamUrl(url);
+    state = state.copyWith(
+      destination: state.destination.where((dest) => dest.url != url).toList(),
+    );
   }
 }

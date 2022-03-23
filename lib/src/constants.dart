@@ -19,3 +19,6 @@ const kNoneColor = Colors.transparent;
 const kBlackColor = Colors.black;
 const kWhiteColor = Colors.white;
 const kRedColor = Color(0xFFf5484e);
+
+const youtubeColor = Color(0xFFff0000);
+const twitterColor = Color(0xFF643ea3);

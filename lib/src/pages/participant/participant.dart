@@ -1,15 +1,17 @@
+import 'package:agora_rtc_engine/rtc_engine.dart';
 import 'package:agora_rtc_engine/rtc_local_view.dart' as local;
 import 'package:agora_rtc_engine/rtc_remote_view.dart' as remote;
 import 'package:agora_rtm/agora_rtm.dart';
-import 'package:bordered_text/bordered_text.dart';
 import 'package:flutter/material.dart';
 import 'package:streamer/src/constants.dart';
 import 'package:streamer/src/models/user.model.dart';
+import 'package:streamer/src/pages/participant/components/toolbar.dart';
+import 'package:streamer/src/pages/participant/components/waiting_active.dart';
+import 'package:streamer/src/ultils/extentions/hex_color.dart';
 import 'package:streamer/src/ultils/migrates/agora.dart';
 import 'package:streamer/src/ultils/migrates/message.dart';
 import 'package:streamer/src/ultils/migrates/spacing.dart';
 import 'package:streamer/src/ultils/ultils.dart';
-import 'package:streamer/src/ultils/widgets/custom_icon_button.dart';
 import 'package:streamer/src/ultils/widgets/extended_grid.dart';
 
 class Participant extends StatefulWidget {
@@ -32,6 +34,7 @@ class _ParticipantState extends State<Participant> {
   final agora = Agora();
   List<User> _users = [];
   bool muted = false, videoDisabled = false;
+  final backgroundColor = randomeColor();
 
   @override
   void initState() {
@@ -51,9 +54,7 @@ class _ParticipantState extends State<Participant> {
     return Scaffold(
       body: SafeArea(
         child: Stack(
-          children: [
-            _broadcastView(),
-          ],
+          children: [_broadcastView()],
         ),
       ),
     );
@@ -61,11 +62,11 @@ class _ParticipantState extends State<Participant> {
 
   Widget _broadcastView() {
     if (_users.isEmpty) {
-      return const Center(child: Text('No users'));
+      return const WaitingActive();
     }
     final users = _users.where((u) => u.uid != widget.uid).toList();
     final primary = _users.singleWhere(
-      (u) => u.uid != widget.uid,
+      (u) => u.uid == widget.uid,
       orElse: () => User(
         uid: widget.uid,
         name: widget.channelName,
@@ -83,7 +84,14 @@ class _ParticipantState extends State<Participant> {
             isLocalActive
                 ? local.SurfaceView()
                 : remote.SurfaceView(uid: user.uid),
-            if (isLocalActive) _toolBar(),
+            if (isLocalActive)
+              Toolbar(
+                muted: muted,
+                videoDisabled: videoDisabled,
+                onSwitchCamera: _onSwitchCamera,
+                onToggleMute: _onToggleMute,
+                onToggleVideoDisabled: _onToggleVideoDisabled,
+              ),
             Align(
               alignment: Alignment.bottomRight,
               child: Container(
@@ -95,7 +103,9 @@ class _ParticipantState extends State<Participant> {
                   ),
                 ),
                 child: Text(
-                  isLocalActive ? widget.userName : user.name ?? 'Error name',
+                  isLocalActive
+                      ? widget.userName
+                      : user.name ?? '@user${user.uid}',
                   style: const TextStyle(
                     color: kWhiteColor,
                     fontSize: Spacing.m,
@@ -108,51 +118,10 @@ class _ParticipantState extends State<Participant> {
         });
   }
 
-  Widget _toolBar() {
-    return Container(
-      alignment: Alignment.bottomCenter,
-      padding: const EdgeInsets.symmetric(vertical: 48.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          KIconButton(
-            color: muted ? kWhiteColor : Colors.blueAccent,
-            backgroundColor: muted ? Colors.blueAccent : kWhiteColor,
-            icon: muted ? Icons.mic_off : Icons.mic,
-            onPressed: _onToggleMute,
-          ),
-          KIconButton(
-            size: 35.0,
-            color: kWhiteColor,
-            backgroundColor: Colors.redAccent,
-            icon: Icons.call_end,
-            onPressed: () => _onCallEnd(context),
-          ),
-          KIconButton(
-            color: videoDisabled ? kWhiteColor : Colors.blueAccent,
-            backgroundColor: videoDisabled ? Colors.blueAccent : kWhiteColor,
-            icon: videoDisabled ? Icons.videocam_off : Icons.videocam,
-            onPressed: _onToggleVideoDisabled,
-          ),
-          KIconButton(
-            color: Colors.blueAccent,
-            backgroundColor: kWhiteColor,
-            icon: Icons.switch_camera,
-            onPressed: _onSwitchCamera,
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> initialAgora() async {
     try {
       await agora.initialAgora();
-      agora.connection(onSuccess: (channel, uid, elapsed) {
-        setState(() => _users.add(User(uid: uid)));
-      }, onLeaving: (stats) {
-        setState(_users.clear);
-      });
+      agora.connection(onSuccess: _onJoin, onLeaving: _onLeaving);
       agora.onConnectionStateChanged();
       await agora.join(widget.uid, widget.channelName);
       agora.onMemberChanged(onMessageReceive: _onMessageReceive);
@@ -171,18 +140,11 @@ class _ParticipantState extends State<Participant> {
     agora.engine.muteLocalVideoStream(videoDisabled);
   }
 
-  void _onCallEnd(BuildContext context) {
-    if (Navigator.canPop(context)) {
-      Navigator.maybePop(context);
-    }
-  }
-
   void _onSwitchCamera() {
     agora.engine.switchCamera();
   }
 
   void _onMessageReceive(AgoraRtmMessage message, AgoraRtmMember member) {
-    //
     final _message = message.text.split(' ');
     switch (_message[0]) {
       case audio:
@@ -207,9 +169,26 @@ class _ParticipantState extends State<Participant> {
         }
       case active_users:
         {
-          setState(() => _users = ReceiveMessage.activeUsers(_message[1]));
+          setState(() {
+            _users = ReceiveMessage.activeUsers(_message[1]);
+          });
           return;
         }
+    }
+  }
+
+  void _onJoin(String channel, int uid, int elapsed) {
+    setState(() {
+      final name = {'key': 'name', 'value': widget.userName};
+      final color = {'key': 'color', 'value': backgroundColor.toHex};
+      agora.setClientAtributte([color, name]);
+    });
+  }
+
+  void _onLeaving(RtcStats stats) {
+    _users.clear();
+    if (mounted) {
+      setState(() {});
     }
   }
 }
