@@ -77,6 +77,11 @@ class HeaderDirector extends StatelessWidget {
       ),
       PopupMenuDivider(),
       PopupMenuItem(
+        child: ListTile(leading: Icon(Icons.add), title: Text('Facebook')),
+        value: StreamPlatform.facebook,
+      ),
+      PopupMenuDivider(),
+      PopupMenuItem(
         child: ListTile(leading: Icon(Icons.add), title: Text('Other')),
         value: StreamPlatform.other,
       ),

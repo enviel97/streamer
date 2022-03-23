@@ -24,15 +24,13 @@ class Director extends ConsumerStatefulWidget {
 }
 
 class _DirectorState extends ConsumerState<Director> {
-  String url = '', key = '';
-
   @override
   void initState() {
     super.initState();
-    // ref.read(directorController.notifier).joinCall(
-    //       channelName: widget.channelName,
-    //       uid: widget.uid,
-    //     );
+    ref.read(directorController.notifier).joinCall(
+          channelName: widget.channelName,
+          uid: widget.uid,
+        );
   }
 
   @override
