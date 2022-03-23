@@ -71,6 +71,7 @@ class _DirectorState extends ConsumerState<Director> {
                           channelName: widget.channelName,
                           controller: controller,
                           destinations: data.destination,
+                          isLived: data.isLive,
                         ),
                       )
                     ],

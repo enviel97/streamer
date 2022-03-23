@@ -10,14 +10,15 @@ import 'package:streamer/src/ultils/migrates/spacing.dart';
 class HeaderDirector extends StatelessWidget {
   final DirectorController controller;
   final List<StreamDestination> destinations;
-  final String channelName, status;
+  final String channelName;
+  final bool isLived;
 
   const HeaderDirector({
     required this.controller,
     required this.channelName,
     required this.destinations,
+    required this.isLived,
     Key? key,
-    this.status = 'leaving',
   }) : super(key: key);
 
   @override
@@ -44,6 +45,7 @@ class HeaderDirector extends StatelessWidget {
                         platform: dest.platform,
                         controller: controller,
                         url: dest.url,
+                        isLived: isLived,
                       ))
                   .toList(),
             ),

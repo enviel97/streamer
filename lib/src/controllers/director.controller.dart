@@ -106,7 +106,7 @@ class DirectorController extends StateNotifier<Director> {
     _sendMessageToChannel(
       SendMessage.changedAudio(
         uid: '${user.uid}',
-        muted: user.muted,
+        muted: !user.muted,
       ),
     );
   }
@@ -117,7 +117,7 @@ class DirectorController extends StateNotifier<Director> {
     _sendMessageToChannel(
       SendMessage.changedVideo(
         uid: '${user.uid}',
-        disabled: user.videoDisabled,
+        disabled: !user.videoDisabled,
       ),
     );
   }

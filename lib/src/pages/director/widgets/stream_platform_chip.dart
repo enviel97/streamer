@@ -10,6 +10,7 @@ class StreamPlatformChip extends StatelessWidget {
   final StreamPlatform platform;
   final String url;
   final DirectorController controller;
+  final bool isLived;
   final Color? backgroundColor;
 
   const StreamPlatformChip({
@@ -18,6 +19,7 @@ class StreamPlatformChip extends StatelessWidget {
     required this.url,
     Key? key,
     this.backgroundColor,
+    this.isLived = false,
   }) : super(key: key);
 
   String get label => platform.name.split('.').last.firstUperCase();
@@ -50,6 +52,7 @@ class StreamPlatformChip extends StatelessWidget {
         label: Text(label),
         deleteIconColor: kWhiteColor,
         onDeleted: () {
+          if (isLived) return;
           controller.removePublishDestination(platform: platform, url: url);
         },
       ),

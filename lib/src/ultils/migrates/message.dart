@@ -35,7 +35,7 @@ class ReceiveMessage {
 
   static Map<int, bool?> changedAudio(String message) {
     final _message = message.split(':');
-    final _uid = int.tryParse(_message[1]);
+    final _uid = int.tryParse(_message[0]);
     if (_uid != null) {
       switch (_message[0]) {
         case 'muted':
@@ -49,7 +49,7 @@ class ReceiveMessage {
 
   static Map<int, bool?> changedVideo(String message) {
     final _message = message.split(':');
-    final _uid = int.tryParse(_message[1]);
+    final _uid = int.tryParse(_message[0]);
     if (_uid != null) {
       switch (_message[0]) {
         case 'disabled':
