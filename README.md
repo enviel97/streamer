@@ -11,6 +11,3 @@ This project is a pratice for study about flutter. Get inspired from freecode ca
 - agora: steaming helper packet
 - flutter riverpod: state managerment (inspired from provider)
 
-## Link
-
-https://www.youtube.com/watch?v=hN4Q04ODOEw
